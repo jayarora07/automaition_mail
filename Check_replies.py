@@ -11,7 +11,7 @@ import ssl
 IMAP_SERVER = "imap.iitb.ac.in"
 IMAP_PORT = 993
 EMAIL_ID = "jay.arora@iitb.ac.in"
-ACCESS_TOKEN = "a7b43e5545d0be6a747e03dd91ff6edf"  
+ACCESS_TOKEN = "a7b43e5545d0be6a747e03dd91ff6edf"
 
 # 🔹 Google Sheets API Credentials
 SERVICE_ACCOUNT_FILE = "credentials.json"  # Path to your Google API JSON file
@@ -30,7 +30,7 @@ def fetch_sent_emails():
     data = sheet.get_all_records()
     
     df = pd.DataFrame(data)  # Convert to DataFrame
-    return set(df["email"])  # Convert email column to a set
+    return df, set(df["email"])  # Convert email column to a set
 
 # 🔹 Function to Connect to IITB Webmail (IMAP)
 def connect_to_imap():
@@ -53,7 +53,7 @@ def fetch_recent_emails(mail):
     try:
         mail.select("INBOX")
         # Get date 48 hours ago
-        date_since = (datetime.now() - timedelta(hours=48)).strftime("%d-%b-%Y")
+        date_since = (datetime.now() - timedelta(hours=1)).strftime("%d-%b-%Y")
         query = f'(SINCE {date_since})'
         
         status, messages = mail.search(None, query)
@@ -82,6 +82,17 @@ def fetch_recent_emails(mail):
         print(f"❌ Error while fetching emails: {e}")
         return set()
 
+# 🔹 Function to Update Status in Google Sheets
+def update_status_in_sheets(df, matched_emails):
+    creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+
+    for index, row in df.iterrows():
+        if row["email"] in matched_emails and row["Status"] == "Mail sent":
+            sheet.update_cell(index + 2, 6, "Replied")  # Column F (6th column)
+            print(f"🔄 Updated status to 'Replied' for {row['email']}")
+
 # 🔹 Main Execution
 def main():
     mail = connect_to_imap()
@@ -90,7 +101,7 @@ def main():
         replied_emails = fetch_recent_emails(mail)
         
         # Fetch email list from Google Sheets
-        sent_email_list = fetch_sent_emails()
+        df, sent_email_list = fetch_sent_emails()
         
         # Compare and find matching emails
         matched_emails = replied_emails.intersection(sent_email_list)
@@ -103,6 +114,9 @@ def main():
             print("\n✅ Email IDs that replied and are in the spreadsheet:")
             for email_id in matched_emails:
                 print(email_id)
+
+            # 🔹 Update Status Column in Google Sheets
+            update_status_in_sheets(df, matched_emails)
         else:
             print("❌ No matching replies found in the spreadsheet.")
 

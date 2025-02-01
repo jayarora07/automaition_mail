@@ -6,7 +6,7 @@ from google.oauth2.service_account import Credentials
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from datetime import datetime  # 🔹 Add this import
+from datetime import datetime  # 🔹 Import datetime for date formatting
 import os
 
 # 🔹 Load Google Sheets API credentials
@@ -24,7 +24,11 @@ SHEET_NAME = "Emails"  # Change this to your actual sheet name
 # 🔹 Fetch data from Google Sheets
 def fetch_google_sheet_data():
     sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
-    data = sheet.get_all_records()  # Returns data as a list of dictionaries
+    
+    # Expected headers to avoid duplicate column issues
+    expected_headers = ["email", "first_name", "message_id", "Mail_sent_on", "Status"]  # Added "Status"
+    
+    data = sheet.get_all_records(expected_headers=expected_headers)  # Ensure correct headers
     return pd.DataFrame(data)  # Convert to Pandas DataFrame
 
 # 🔹 Fetch the latest data
@@ -34,7 +38,7 @@ df = fetch_google_sheet_data()
 SMTP_SERVER = "smtp-auth.iitb.ac.in"
 SMTP_PORT = 587
 SENDER_EMAIL = "jay.arora@iitb.ac.in"
-ACCESS_TOKEN = "a7b43e5545d0be6a747e03dd91ff6edf"  # Use your generated app password
+ACCESS_TOKEN = "a7b43e5545d0be6a747e03dd91ff6edf"  # Use your generated app password  
 
 # 🔹 PDF Attachment (Resume)
 PDF_PATH = "Jay_Arora_Resume.pdf"
@@ -87,7 +91,7 @@ EMAIL_TEMPLATE = """\
 </html>
 """
 
-# 🔹 Function to Send Emails with Attachments
+# 🔹 Function to Send Emails with Attachments and Update Google Sheet
 def send_email(receiver_email, first_name, row_index):
     try:
         # Create Email Message
@@ -124,17 +128,17 @@ def send_email(receiver_email, first_name, row_index):
 
         print(f"✅ Email sent to {receiver_email} (Message-ID: {message_id})")
 
-        # 🔹 Store the Message-ID in Google Sheets
+        # 🔹 Store the Message-ID, Email Sent Date, and Status in Google Sheets
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
-        sheet.update_cell(row_index + 2, 4, message_id)  # Column D (4th column)
+        today_date = datetime.now().strftime("%d-%m-%y")  # 🔹 Format: DD-MM-YY
+        sheet.update_cell(row_index + 2, 4, message_id)  # Column D (4th column) for "message_id"
+        sheet.update_cell(row_index + 2, 5, today_date)  # Column E (5th column) for "Mail_sent_on"
+        sheet.update_cell(row_index + 2, 6, "Mail sent")  # Column F (6th column) for "Status"
 
     except Exception as e:
         print(f"❌ Failed to send email to {receiver_email}: {e}")
 
 
-# Loop Through Recipients and Send Emails
+# 🔹 Loop Through Recipients and Send Emails
 for index, row in df.iterrows():
     send_email(row["email"], row["first_name"], index)  # ✅ Pass 'index' as row_index
-
-
-

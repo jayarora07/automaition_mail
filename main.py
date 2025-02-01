@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from datetime import datetime  # 🔹 Add this import
 import os
 
 # 🔹 Load Google Sheets API credentials
@@ -87,13 +88,17 @@ EMAIL_TEMPLATE = """\
 """
 
 # 🔹 Function to Send Emails with Attachments
-def send_email(receiver_email, first_name):
+def send_email(receiver_email, first_name, row_index):
     try:
         # Create Email Message
         msg = MIMEMultipart()
         msg["From"] = SENDER_EMAIL
         msg["To"] = receiver_email
         msg["Subject"] = EMAIL_SUBJECT
+
+        # 🔹 Generate a unique Message-ID
+        message_id = f"<{row_index}.{int(datetime.now().timestamp())}@iitb.ac.in>"
+        msg["Message-ID"] = message_id  # Attach Message-ID to email
 
         # Personalize the message
         body = EMAIL_TEMPLATE.format(first_name=first_name)
@@ -117,13 +122,19 @@ def send_email(receiver_email, first_name):
             server.login(SENDER_EMAIL, ACCESS_TOKEN)
             server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
 
-        print(f"✅ Email sent to {receiver_email}")
+        print(f"✅ Email sent to {receiver_email} (Message-ID: {message_id})")
+
+        # 🔹 Store the Message-ID in Google Sheets
+        sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+        sheet.update_cell(row_index + 2, 4, message_id)  # Column D (4th column)
 
     except Exception as e:
         print(f"❌ Failed to send email to {receiver_email}: {e}")
 
-# 🔹 Loop Through Recipients and Send Emails
+
+# Loop Through Recipients and Send Emails
 for index, row in df.iterrows():
-    send_email(row["email"], row["first_name"])
+    send_email(row["email"], row["first_name"], index)  # ✅ Pass 'index' as row_index
+
 
 

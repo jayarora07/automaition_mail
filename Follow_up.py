@@ -85,7 +85,7 @@ def send_followup_email(receiver_email, first_name, message_id):
     except Exception as e:
         print(f"❌ Failed to send follow-up email to {receiver_email}: {e}")
 
-# 🔹 Loop Through Recipients and Send Follow-up Emails
-for index, row in df.iterrows():
-    # Assuming message ID of previous email is stored in a column named "message_id"
-    send_followup_email(row["email"], row["first_name"], row["message_id"])
+# # 🔹 Loop Through Recipients and Send Follow-up Emails
+# for index, row in df.iterrows():
+#     # Assuming message ID of previous email is stored in a column named "message_id"
+#     send_followup_email(row["email"], row["first_name"], row["message_id"])

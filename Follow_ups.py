@@ -41,17 +41,19 @@ def fetch_google_sheet_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
-# 🔹 Function to Check for Follow-Ups (R1 & R2)
+# 🔹 Function to Check for Follow-Ups (`R1`, `R2`, `R3`)
 def check_followup_emails(df):
     today_date = datetime.now().date()
     r1_followup_list = []
     r2_followup_list = []
+    r3_followup_list = []
 
     for index, row in df.iterrows():
         try:
             # Convert dates to datetime objects
             mail_sent_date = datetime.strptime(row["Mail_sent_on"], "%d-%m-%y").date()
             r1_sent_date = datetime.strptime(row["R1_sent_on"], "%d-%m-%y").date() if row["R1_sent_on"] else None
+            r2_sent_date = datetime.strptime(row["R2_sent_on"], "%d-%m-%y").date() if row["R2_sent_on"] else None
 
             # Check for R1 Follow-up
             if (today_date - mail_sent_date).days >= 5 and row["Status"] == "Mail sent":
@@ -70,11 +72,20 @@ def check_followup_emails(df):
                     "first_name": row["first_name"],
                     "message_id": row["message_id"]
                 })
+            
+            # Check for R3 Follow-up
+            if r2_sent_date and (today_date - r2_sent_date).days >= 5 and row["Status"] == "R2 sent":
+                r3_followup_list.append({
+                    "index": index,
+                    "email": row["email"],
+                    "first_name": row["first_name"],
+                    "message_id": row["message_id"]
+                })
 
         except ValueError:
             print(f"❌ Skipping invalid date format for {row['email']}")
 
-    return r1_followup_list, r2_followup_list
+    return r1_followup_list, r2_followup_list, r3_followup_list
 
 # 🔹 Function to Send Follow-Up Email with PDF
 def send_followup_with_pdf(email, first_name, message_id, subject, body):
@@ -129,48 +140,28 @@ def update_followup_status(followup_list, status_column, date_column, new_status
 # 🔹 Main Execution
 def main():
     df = fetch_google_sheet_data()
-    r1_followup_list, r2_followup_list = check_followup_emails(df)
+    r1_followup_list, r2_followup_list, r3_followup_list = check_followup_emails(df)
 
     # Process R1 Follow-ups
     if r1_followup_list:
-        print("\n✅ The following emails qualify for the first follow-up (R1):")
+        print("\n✅ Sending first follow-up (R1):")
         for followup in r1_followup_list:
-            subject = "Gentle Reminder - Follow-up on Previous Email"
-            body = f"""
-            <html>
-            <body style="color: black;">
-                <p>Dear {followup['first_name']},</p>
-                <p>Just checking in regarding my previous email. I wanted to see if there's any update regarding opportunities in your organization.</p>
-                <p>Looking forward to your response.</p>
-                <p>Best Regards,<br>Jay Arora<br>+91 9784835663</p>
-            </body>
-            </html>
-            """
-            send_followup_with_pdf(followup["email"], followup["first_name"], followup["message_id"], subject, body)
-
-        update_followup_status(r1_followup_list, status_column=6, date_column=7, new_status="R1 sent")
+            send_followup_with_pdf(followup["email"], followup["first_name"], followup["message_id"], "Gentle Reminder", "Checking in on my previous email.")
+        update_followup_status(r1_followup_list, 6, 7, "R1 sent")
 
     # Process R2 Follow-ups
     if r2_followup_list:
-        print("\n✅ The following emails qualify for the second follow-up (R2):")
+        print("\n✅ Sending second follow-up (R2):")
         for followup in r2_followup_list:
-            subject = "Final Follow-up - Opportunity Inquiry"
-            body = f"""
-            <html>
-            <body style="color: black;">
-                <p>Dear {followup['first_name']},</p>
-                <p>This is my final follow-up regarding my previous emails. If you're available, I'd love to discuss potential opportunities.</p>
-                <p>Looking forward to your response.</p>
-                <p>Best Regards,<br>Jay Arora<br>+91 9784835663</p>
-            </body>
-            </html>
-            """
-            send_followup_with_pdf(followup["email"], followup["first_name"], followup["message_id"], subject, body)
+            send_followup_with_pdf(followup["email"], followup["first_name"], followup["message_id"], "Final Follow-up", "Following up once more.")
+        update_followup_status(r2_followup_list, 6, 8, "R2 sent")
 
-        update_followup_status(r2_followup_list, status_column=6, date_column=8, new_status="R2 sent")
-
-    if not r1_followup_list and not r2_followup_list:
-        print("❌ No emails qualify for follow-up today.")
+    # Process R3 Follow-ups
+    if r3_followup_list:
+        print("\n✅ Sending last follow-up (R3):")
+        for followup in r3_followup_list:
+            send_followup_with_pdf(followup["email"], followup["first_name"], followup["message_id"], "Last Follow-up", "This is my final attempt to connect with you.")
+        update_followup_status(r3_followup_list, 6, 9, "R3 sent")
 
 if __name__ == "__main__":
     main()

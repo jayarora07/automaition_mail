@@ -66,8 +66,8 @@ def send_followup_email(receiver_email, first_name, message_id):
         msg["From"] = SENDER_EMAIL
         msg["To"] = receiver_email
         msg["Subject"] = EMAIL_SUBJECT
-        msg["In-Reply-To"] = message_id  # Maintain Threading
-        msg["References"] = message_id   # Maintain Threading
+        msg["In-Reply-To"] = message_id.strip()  # Maintain Threading
+        msg["References"] = message_id.strip()   # Maintain Threading
 
         # Personalize the message
         body = EMAIL_TEMPLATE.format(first_name=first_name)
@@ -80,12 +80,12 @@ def send_followup_email(receiver_email, first_name, message_id):
             server.login(SENDER_EMAIL, ACCESS_TOKEN)
             server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
 
-        print(f"✅ Follow-up email sent to {receiver_email}")
+        print(f"✅ Follow-up email sent to {receiver_email} (In Thread)")
 
     except Exception as e:
         print(f"❌ Failed to send follow-up email to {receiver_email}: {e}")
 
-# # 🔹 Loop Through Recipients and Send Follow-up Emails
-# for index, row in df.iterrows():
-#     # Assuming message ID of previous email is stored in a column named "message_id"
-#     send_followup_email(row["email"], row["first_name"], row["message_id"])
+# 🔹 Loop Through Recipients and Send Follow-up Emails
+#for index, row in df.iterrows():  
+    # Assuming message ID of previous email is stored in a column named "message_id"
+    #send_followup_email(row["email"], row["first_name"], row["message_id"])

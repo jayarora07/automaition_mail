@@ -1,0 +1,129 @@
+import gspread
+import pandas as pd
+import smtplib
+import ssl
+from google.oauth2.service_account import Credentials
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+import os
+
+# 🔹 Load Google Sheets API credentials
+SERVICE_ACCOUNT_FILE = "credentials.json"  # Path to your downloaded JSON key file
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+# 🔹 Authenticate with Google Sheets API
+creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+client = gspread.authorize(creds)
+
+# 🔹 Google Sheet ID and Sheet Name
+SPREADSHEET_ID = "1jSpYf7iEZ7HnYf4Ju60dftO3DBGBesfxn6GwJ3jpRVc"  # Get this from the Google Sheet URL
+SHEET_NAME = "Emails"  # Change this to your actual sheet name
+
+# 🔹 Fetch data from Google Sheets
+def fetch_google_sheet_data():
+    sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+    data = sheet.get_all_records()  # Returns data as a list of dictionaries
+    return pd.DataFrame(data)  # Convert to Pandas DataFrame
+
+# 🔹 Fetch the latest data
+df = fetch_google_sheet_data()
+
+# 🔹 Email credentials
+SMTP_SERVER = "smtp-auth.iitb.ac.in"
+SMTP_PORT = 587
+SENDER_EMAIL = "jay.arora@iitb.ac.in"
+ACCESS_TOKEN = "a7b43e5545d0be6a747e03dd91ff6edf"  # Use your generated app password
+
+# 🔹 PDF Attachment (Resume)
+PDF_PATH = "Jay_Arora_Resume.pdf"
+
+# 🔹 Email Subject & Template (With Bold Formatting)
+EMAIL_SUBJECT = "Regarding Full-time Opportunities"
+EMAIL_TEMPLATE = """\
+<html>
+ <body style="color: black;">
+  
+    <p>Dear {first_name},</p>
+
+    <p>Warm Greetings!</p>
+
+    <p>I hope this email finds you well.</p>
+
+    <p>
+      I am Jay Arora, a final-year undergraduate majoring in Chemistry at IIT Bombay, graduating in 2025.
+      I am reaching out to explore potential full-time opportunities in <b>Product Management</b> or 
+      <b>Founder’s Office roles</b> within your esteemed organization.
+    </p>
+
+    <p>Here’s a brief overview of my professional experiences:</p>
+
+    
+     <b>Zeno Health (Product Management Intern)</b>: Led app development to enhance store operations and user engagement.<br>
+     <b>Nova Benefits (Business Analyst Intern)</b>: Automated workflows and improved client engagement strategies.<br>
+     <b>NeuralThread (Business Development Intern)</b>: Designed sales strategies and expanded client portfolios.<br>
+    
+
+    <p>Talking about my college journey:</p>
+   
+      <b>Leadership</b>: Led SARC’s 75+ member team and mentored students as a DAMP-ARP mentor.<br>
+      <b>Projects</b>: Developed a start-up idea in Second Bite to tackle food wastage and devised strategies in the Indian Case Challenge for user engagement and retention.<br>
+      <b>Extracurriculars & Achievements</b>: Volunteered for social initiatives like teaching underprivileged students and received the Institute Academic Award for securing Department Rank 1.<br>
+    
+
+    <p>I have attached my resume and would be grateful for an opportunity to discuss relevant roles or connect with the appropriate team.</p>
+
+    <p>
+      Please feel free to contact me at <b>jay.arora@iitb.ac.in</b> or <b>+91 9784835663</b>.
+    </p>
+
+    <p>Thank you for your time and consideration.</p>
+
+    <p>Best Regards,<br>
+    Jay Arora<br>
+    +91 9784835663</p>
+  </body>
+</html>
+"""
+
+# 🔹 Function to Send Emails with Attachments
+def send_email(receiver_email, first_name):
+    try:
+        # Create Email Message
+        msg = MIMEMultipart()
+        msg["From"] = SENDER_EMAIL
+        msg["To"] = receiver_email
+        msg["Subject"] = EMAIL_SUBJECT
+
+        # Personalize the message
+        body = EMAIL_TEMPLATE.format(first_name=first_name)
+        msg.attach(MIMEText(body, "html"))  # Use HTML format
+
+        # Attach PDF file (Resume)
+        if os.path.exists(PDF_PATH):
+            with open(PDF_PATH, "rb") as attachment:
+                pdf_attachment = MIMEApplication(attachment.read(), _subtype="pdf")
+                pdf_attachment.add_header(
+                    "Content-Disposition", f"attachment; filename={os.path.basename(PDF_PATH)}"
+                )
+                msg.attach(pdf_attachment)
+        else:
+            print(f"⚠️ Warning: PDF file {PDF_PATH} not found. Email will be sent without an attachment.")
+
+        # Connect to SMTP Server and Send Email
+        context = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls(context=context)  # Secure the connection
+            server.login(SENDER_EMAIL, ACCESS_TOKEN)
+            server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+
+        print(f"✅ Email sent to {receiver_email}")
+
+    except Exception as e:
+        print(f"❌ Failed to send email to {receiver_email}: {e}")
+
+# 🔹 Loop Through Recipients and Send Emails
+for index, row in df.iterrows():
+    send_email(row["email"], row["first_name"])
+
+

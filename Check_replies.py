@@ -82,14 +82,14 @@ def fetch_recent_emails(mail):
         print(f"❌ Error while fetching emails: {e}")
         return set()
 
-# 🔹 Function to Update Status in Google Sheets
+# 🔹 Function to Update Status in Google Sheets (Always Change to "Replied")
 def update_status_in_sheets(df, matched_emails):
     creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
 
     for index, row in df.iterrows():
-        if row["email"] in matched_emails and row["Status"] == "Mail sent":
+        if row["email"] in matched_emails:
             sheet.update_cell(index + 2, 6, "Replied")  # Column F (6th column)
             print(f"🔄 Updated status to 'Replied' for {row['email']}")
 
@@ -115,7 +115,7 @@ def main():
             for email_id in matched_emails:
                 print(email_id)
 
-            # 🔹 Update Status Column in Google Sheets
+            # 🔹 Update Status Column in Google Sheets (Always Set to "Replied")
             update_status_in_sheets(df, matched_emails)
         else:
             print("❌ No matching replies found in the spreadsheet.")
